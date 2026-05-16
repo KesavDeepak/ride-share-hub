@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LogOut, Save, Upload, Plus, Trash2, Eye, Download as DownloadIcon, Check, AlertCircle } from "lucide-react";
-import { LineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { api, type Content, type Analytics, type Step } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -11,21 +10,25 @@ export const Route = createFileRoute("/admin/dashboard")({
 });
 
 type Toast = { kind: "ok" | "err"; msg: string } | null;
+const DEFAULT_ANALYTICS: Analytics = { pageViews: 0, downloads: 0, history: [] };
 
 function Dashboard() {
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
   const [content, setContent] = useState<Content | null>(null);
-  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [analytics, setAnalytics] = useState<Analytics>(DEFAULT_ANALYTICS);
   const [toast, setToast] = useState<Toast>(null);
+  const [apkUrlInput, setApkUrlInput] = useState("");
 
   useEffect(() => {
     if (!api.isAuthed()) {
       navigate({ to: "/admin" });
       return;
     }
-    setContent(api.getContent());
+    const currentContent = api.getContent();
+    setContent(currentContent);
     setAnalytics(api.getAnalytics());
+    setApkUrlInput(currentContent.apkUrl && !currentContent.apkUrl.startsWith("data:") ? currentContent.apkUrl : "");
     setReady(true);
   }, [navigate]);
 
@@ -59,12 +62,32 @@ function Dashboard() {
     const reader = new FileReader();
     reader.onload = () => {
       saveContent({ ...content, apkUrl: reader.result as string, apkName: file.name });
+      setApkUrlInput("");
     };
     reader.onerror = () => showToast({ kind: "err", msg: "Failed to read APK." });
     reader.readAsDataURL(file);
   };
 
-  if (!ready || !content || !analytics) return null;
+  const saveApkUrl = () => {
+    if (!content) return;
+    if (!apkUrlInput.trim()) {
+      showToast({ kind: "err", msg: "Please provide an APK URL." });
+      return;
+    }
+    const url = apkUrlInput.trim();
+    const apkNameFromUrl = url.split("/").pop()?.split("?")[0] || content.apkName || "rideshare.apk";
+    saveContent({ ...content, apkUrl: url, apkName: apkNameFromUrl });
+  };
+
+  if (!ready || !content) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5 text-center text-sm text-muted-foreground">
+          Loading admin dashboard…
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -97,22 +120,21 @@ function Dashboard() {
             <MetricCard icon={DownloadIcon} label="Total APK downloads" value={analytics.downloads} />
           </div>
           <div className="mt-6 rounded-2xl border border-border bg-card p-5">
-            <h3 className="mb-4 text-sm font-semibold">Last 30 days</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics.history}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
-                  <YAxis tick={{ fontSize: 11 }} stroke="currentColor" opacity={0.5} />
-                  <Tooltip contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="views" stroke="var(--primary)" strokeWidth={2} dot={false} name="Views" />
-                  <Line type="monotone" dataKey="downloads" stroke="var(--primary-glow)" strokeWidth={2} dot={false} name="Downloads" />
-                </LineChart>
-              </ResponsiveContainer>
-              {analytics.history.length === 0 && (
-                <p className="-mt-32 text-center text-sm text-muted-foreground">No activity yet — visit the landing page to generate data.</p>
-              )}
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Last 30 days</h3>
+                <p className="text-xs text-muted-foreground">Page views and APK downloads over time</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" /> Views
+                </span>
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary-glow" /> Downloads
+                </span>
+              </div>
             </div>
+            <AnalyticsChart history={analytics.history} />
           </div>
         </section>
 
@@ -219,15 +241,42 @@ function Dashboard() {
           <p className="mb-4 text-xs text-muted-foreground">
             Current: {content.apkUrl ? <span className="text-primary">{content.apkName}</span> : <span className="text-muted-foreground">none</span>}
           </p>
-          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-border bg-background px-5 py-3 text-sm hover:border-primary hover:text-primary">
-            <Upload className="h-4 w-4" /> Upload APK
+          <label
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              const file = e.dataTransfer.files?.[0];
+              if (file) onApkUpload(file);
+            }}
+            className="group relative flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-background px-5 py-10 text-sm text-center transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
+          >
+            <Upload className="mb-3 h-5 w-5 text-primary" />
+            <span className="font-semibold">Drop APK here or click to upload</span>
+            <span className="mt-1 text-xs text-muted-foreground">Only .apk files are accepted.</span>
             <input
               type="file"
               accept=".apk,application/vnd.android.package-archive"
-              className="hidden"
+              className="sr-only"
               onChange={(e) => e.target.files?.[0] && onApkUpload(e.target.files[0])}
             />
           </label>
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+            <input
+              type="url"
+              value={apkUrlInput}
+              onChange={(e) => setApkUrlInput(e.target.value)}
+              placeholder="https://drive.google.com/your-apk-link"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={saveApkUrl}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-glow active:scale-95"
+            >
+              Save APK URL
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Tip: paste a public APK URL from Google Drive, Dropbox, or another host.</p>
         </section>
       </main>
 
@@ -244,6 +293,57 @@ function Dashboard() {
           {toast.msg}
         </div>
       )}
+    </div>
+  );
+}
+
+function AnalyticsChart({ history }: { history: { date: string; views: number; downloads: number }[] }) {
+  if (history.length === 0) {
+    return <p className="text-center text-sm text-muted-foreground">No activity yet — visit the landing page to generate data.</p>;
+  }
+
+  const width = 680;
+  const height = 220;
+  const padding = 40;
+  const maxValue = Math.max(...history.map((item) => Math.max(item.views, item.downloads)), 1);
+  const points = history.map((item, index) => {
+    const x = padding + (index / Math.max(history.length - 1, 1)) * (width - padding * 2);
+    const yViews = height - padding - (item.views / maxValue) * (height - padding * 2);
+    const yDownloads = height - padding - (item.downloads / maxValue) * (height - padding * 2);
+    return { ...item, x, yViews, yDownloads };
+  });
+
+  const viewsPath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.yViews}`).join(" ");
+  const downloadsPath = points.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.yDownloads}`).join(" ");
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-background p-3">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+        <g opacity="0.4" stroke="currentColor" strokeWidth="1">
+          {[0, 1, 2, 3].map((line) => (
+            <line
+              key={line}
+              x1={padding}
+              x2={width - padding}
+              y1={padding + ((height - padding * 2) / 3) * line}
+              y2={padding + ((height - padding * 2) / 3) * line}
+            />
+          ))}
+        </g>
+        <path d={viewsPath} fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" />
+        <path d={downloadsPath} fill="none" stroke="var(--primary-glow)" strokeWidth="2" strokeLinecap="round" />
+        {points.map((point) => (
+          <circle key={`views-${point.date}`} cx={point.x} cy={point.yViews} r="3" fill="var(--primary)" />
+        ))}
+        {points.map((point) => (
+          <circle key={`downloads-${point.date}`} cx={point.x} cy={point.yDownloads} r="3" fill="var(--primary-glow)" />
+        ))}
+        {points.map((point, idx) => (
+          <text key={point.date} x={point.x} y={height - padding + 18} textAnchor="middle" fontSize="9" fill="currentColor">
+            {idx === 0 || idx === history.length - 1 || history.length <= 5 ? point.date.slice(5) : ""}
+          </text>
+        ))}
+      </svg>
     </div>
   );
 }
