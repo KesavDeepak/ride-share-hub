@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
@@ -21,8 +21,15 @@ function AdminGate() {
     if (ok) navigate({ to: "/admin/dashboard" });
   }, [navigate]);
 
-  if (!checked) return null;
-  if (authed) return null;
+  if (!checked)
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5 text-center text-sm text-muted-foreground">
+          Checking admin authentication…
+        </div>
+      </div>
+    );
+  if (authed) return <Outlet />;
   return <Login onSuccess={() => navigate({ to: "/admin/dashboard" })} />;
 }
 
@@ -87,9 +94,6 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
         >
           Sign in
         </button>
-        <p className="mt-4 text-center text-[11px] text-muted-foreground">
-          Default: admin / admin123
-        </p>
       </form>
     </div>
   );

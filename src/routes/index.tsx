@@ -91,12 +91,6 @@ function LandingPage() {
           <span className="text-lg font-bold tracking-tight">Ride Share</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link
-            to="/admin"
-            className="hidden text-sm text-muted-foreground transition-colors hover:text-primary sm:inline"
-          >
-            Admin
-          </Link>
           <ThemeToggle />
         </div>
       </header>
@@ -187,7 +181,7 @@ function LandingPage() {
       </section>
 
       <footer className="relative z-10 border-t border-border/50 py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Ride Share · <Link to="/admin" className="hover:text-primary">Admin</Link>
+        © {new Date().getFullYear()} Ride Share
       </footer>
     </div>
   );
