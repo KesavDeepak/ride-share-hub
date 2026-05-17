@@ -76,13 +76,21 @@ export const api = {
     bumpToday(a, "downloads");
     writeJSON(KEYS.analytics, a);
   },
-  // Auth (demo only — default admin/admin123, change after first login)
+  // Admin auth — credentials are set on first visit via setupAdmin().
+  hasAdmin(): boolean {
+    return !!readJSON<{ username: string; password: string } | null>("rideshare:admin", null);
+  },
+  setupAdmin(username: string, password: string): boolean {
+    if (api.hasAdmin()) return false;
+    if (!username.trim() || password.length < 6) return false;
+    writeJSON("rideshare:admin", { username: username.trim(), password });
+    const token = btoa(`${username}:${Date.now()}`);
+    writeJSON(KEYS.session, { token, at: Date.now() });
+    return true;
+  },
   login(username: string, password: string): boolean {
-    const stored = readJSON<{ username: string; password: string } | null>(
-      "rideshare:admin",
-      null
-    );
-    const creds = stored ?? { username: "admin", password: "admin123" };
+    const creds = readJSON<{ username: string; password: string } | null>("rideshare:admin", null);
+    if (!creds) return false;
     if (username === creds.username && password === creds.password) {
       const token = btoa(`${username}:${Date.now()}`);
       writeJSON(KEYS.session, { token, at: Date.now() });
@@ -96,7 +104,6 @@ export const api = {
   isAuthed(): boolean {
     const s = readJSON<{ token: string; at: number } | null>(KEYS.session, null);
     if (!s) return false;
-    // 7-day session
     return Date.now() - s.at < 7 * 24 * 60 * 60 * 1000;
   },
 };

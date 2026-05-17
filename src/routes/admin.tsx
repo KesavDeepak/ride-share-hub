@@ -1,52 +1,68 @@
-import { createFileRoute, useNavigate, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — Ride Share" }, { name: "robots", content: "noindex" }] }),
-  component: AdminGate,
+  head: () => ({
+    meta: [
+      { title: "Admin — Ride Share" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
+  component: AdminLayout,
 });
 
-function AdminGate() {
-  const navigate = useNavigate();
-  const [checked, setChecked] = useState(false);
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    const ok = api.isAuthed();
-    setAuthed(ok);
-    setChecked(true);
-    if (ok) navigate({ to: "/admin/dashboard" });
-  }, [navigate]);
-
-  if (!checked)
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5 text-center text-sm text-muted-foreground">
-          Checking admin authentication…
-        </div>
-      </div>
-    );
-  if (authed) return <Outlet />;
-  return <Login onSuccess={() => navigate({ to: "/admin/dashboard" })} />;
+function AdminLayout() {
+  // Always render Outlet so child routes (dashboard) can mount and run
+  // their own auth check. /admin index renders the login form.
+  return <Outlet />;
 }
 
-function Login({ onSuccess }: { onSuccess: () => void }) {
+export function AdminLogin() {
+  const navigate = useNavigate();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
+  const [mode, setMode] = useState<"loading" | "setup" | "login">("loading");
+
+  useEffect(() => {
+    if (api.isAuthed()) {
+      navigate({ to: "/admin/dashboard" });
+      return;
+    }
+    setMode(api.hasAdmin() ? "login" : "setup");
+  }, [navigate]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (api.login(u, p)) onSuccess();
-    else setErr("Invalid credentials.");
+    if (mode === "setup") {
+      if (!u.trim() || p.length < 6) {
+        setErr("Username required and password must be at least 6 characters.");
+        return;
+      }
+      if (api.setupAdmin(u, p)) navigate({ to: "/admin/dashboard" });
+      else setErr("Could not create admin account.");
+    } else {
+      if (api.login(u, p)) navigate({ to: "/admin/dashboard" });
+      else setErr("Invalid credentials.");
+    }
   };
 
+  if (mode === "loading") {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  const isSetup = mode === "setup";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
       <div className="absolute right-6 top-6 flex items-center gap-3">
         <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
           <ArrowLeft className="h-4 w-4" /> Home
@@ -62,8 +78,10 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
             <Lock className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">Admin sign in</h1>
-            <p className="text-xs text-muted-foreground">Restricted access</p>
+            <h1 className="text-lg font-semibold">{isSetup ? "Create admin account" : "Admin sign in"}</h1>
+            <p className="text-xs text-muted-foreground">
+              {isSetup ? "Set your credentials — stored only in this browser." : "Restricted access"}
+            </p>
           </div>
         </div>
         <label className="mb-3 block">
@@ -77,13 +95,15 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
           />
         </label>
         <label className="mb-4 block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Password</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Password{isSetup && <span className="text-muted-foreground/70"> (min 6 chars)</span>}
+          </span>
           <input
             type="password"
             value={p}
             onChange={(e) => setP(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
-            autoComplete="current-password"
+            autoComplete={isSetup ? "new-password" : "current-password"}
             required
           />
         </label>
@@ -92,7 +112,7 @@ function Login({ onSuccess }: { onSuccess: () => void }) {
           type="submit"
           className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-glow active:scale-[0.98]"
         >
-          Sign in
+          {isSetup ? "Create account & sign in" : "Sign in"}
         </button>
       </form>
     </div>

@@ -72,7 +72,7 @@ function LandingPage() {
       a.click();
       a.remove();
     } else {
-      alert("APK not uploaded yet. Visit /admin to upload one.");
+      alert("APK isn't available yet. Please check back soon.");
     }
   };
 

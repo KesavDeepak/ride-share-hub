@@ -21,6 +21,7 @@ function Dashboard() {
   const [apkUrlInput, setApkUrlInput] = useState("");
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!api.isAuthed()) {
       navigate({ to: "/admin" });
       return;
@@ -55,8 +56,8 @@ function Dashboard() {
 
   const onApkUpload = (file: File) => {
     if (!content) return;
-    if (file.size > 50 * 1024 * 1024) {
-      showToast({ kind: "err", msg: "APK exceeds 50MB localStorage demo limit." });
+    if (file.size > 80 * 1024 * 1024) {
+      showToast({ kind: "err", msg: "APK exceeds 80MB demo limit. Use a Drive/Dropbox link instead." });
       return;
     }
     const reader = new FileReader();
