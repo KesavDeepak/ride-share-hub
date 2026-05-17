@@ -21,6 +21,7 @@ function Dashboard() {
   const [apkUrlInput, setApkUrlInput] = useState("");
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     if (!api.isAuthed()) {
       navigate({ to: "/admin" });
       return;
