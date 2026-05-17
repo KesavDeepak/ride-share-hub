@@ -1,52 +1,54 @@
-import { createFileRoute, useNavigate, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Lock, ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Admin — Ride Share" }, { name: "robots", content: "noindex" }] }),
-  component: AdminGate,
+  head: () => ({
+    meta: [
+      { title: "Admin — Ride Share" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+  }),
+  component: AdminLayout,
 });
 
-function AdminGate() {
-  const navigate = useNavigate();
-  const [checked, setChecked] = useState(false);
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    const ok = api.isAuthed();
-    setAuthed(ok);
-    setChecked(true);
-    if (ok) navigate({ to: "/admin/dashboard" });
-  }, [navigate]);
-
-  if (!checked)
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <div className="rounded-2xl border border-border bg-card p-8 shadow-xl shadow-primary/5 text-center text-sm text-muted-foreground">
-          Checking admin authentication…
-        </div>
-      </div>
-    );
-  if (authed) return <Outlet />;
-  return <Login onSuccess={() => navigate({ to: "/admin/dashboard" })} />;
+function AdminLayout() {
+  // Always render Outlet so child routes (dashboard) can mount and run
+  // their own auth check. /admin index renders the login form.
+  return <Outlet />;
 }
 
-function Login({ onSuccess }: { onSuccess: () => void }) {
+export function AdminLogin() {
+  const navigate = useNavigate();
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (api.isAuthed()) navigate({ to: "/admin/dashboard" });
+  }, [navigate]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (api.login(u, p)) onSuccess();
+    if (api.login(u, p)) navigate({ to: "/admin/dashboard" });
     else setErr("Invalid credentials.");
   };
 
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4 text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
       <div className="absolute right-6 top-6 flex items-center gap-3">
         <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
           <ArrowLeft className="h-4 w-4" /> Home
