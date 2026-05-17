@@ -25,27 +25,41 @@ export function AdminLogin() {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState("");
-  const [mounted, setMounted] = useState(false);
+  const [mode, setMode] = useState<"loading" | "setup" | "login">("loading");
 
   useEffect(() => {
-    setMounted(true);
-    if (api.isAuthed()) navigate({ to: "/admin/dashboard" });
+    if (api.isAuthed()) {
+      navigate({ to: "/admin/dashboard" });
+      return;
+    }
+    setMode(api.hasAdmin() ? "login" : "setup");
   }, [navigate]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (api.login(u, p)) navigate({ to: "/admin/dashboard" });
-    else setErr("Invalid credentials.");
+    if (mode === "setup") {
+      if (!u.trim() || p.length < 6) {
+        setErr("Username required and password must be at least 6 characters.");
+        return;
+      }
+      if (api.setupAdmin(u, p)) navigate({ to: "/admin/dashboard" });
+      else setErr("Could not create admin account.");
+    } else {
+      if (api.login(u, p)) navigate({ to: "/admin/dashboard" });
+      else setErr("Invalid credentials.");
+    }
   };
 
-  if (!mounted) {
+  if (mode === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4 text-sm text-muted-foreground">
         Loading…
       </div>
     );
   }
+
+  const isSetup = mode === "setup";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
@@ -64,8 +78,10 @@ export function AdminLogin() {
             <Lock className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">Admin sign in</h1>
-            <p className="text-xs text-muted-foreground">Restricted access</p>
+            <h1 className="text-lg font-semibold">{isSetup ? "Create admin account" : "Admin sign in"}</h1>
+            <p className="text-xs text-muted-foreground">
+              {isSetup ? "Set your credentials — stored only in this browser." : "Restricted access"}
+            </p>
           </div>
         </div>
         <label className="mb-3 block">
@@ -79,13 +95,15 @@ export function AdminLogin() {
           />
         </label>
         <label className="mb-4 block">
-          <span className="mb-1 block text-xs font-medium text-muted-foreground">Password</span>
+          <span className="mb-1 block text-xs font-medium text-muted-foreground">
+            Password{isSetup && <span className="text-muted-foreground/70"> (min 6 chars)</span>}
+          </span>
           <input
             type="password"
             value={p}
             onChange={(e) => setP(e.target.value)}
             className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary"
-            autoComplete="current-password"
+            autoComplete={isSetup ? "new-password" : "current-password"}
             required
           />
         </label>
@@ -94,7 +112,7 @@ export function AdminLogin() {
           type="submit"
           className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-all hover:bg-primary-glow active:scale-[0.98]"
         >
-          Sign in
+          {isSetup ? "Create account & sign in" : "Sign in"}
         </button>
       </form>
     </div>
