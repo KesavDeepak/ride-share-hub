@@ -72,14 +72,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Ride Share" },
+      { name: "description", content: "Ride Share Hub is a responsive web app with a public landing page and a secure admin dashboard." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Ride Share" },
+      { property: "og:description", content: "Ride Share Hub is a responsive web app with a public landing page and a secure admin dashboard." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Ride Share" },
+      { name: "twitter:description", content: "Ride Share Hub is a responsive web app with a public landing page and a secure admin dashboard." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ea2c77f5-4114-4628-81d3-893f8b6b8c94/id-preview-d9e3954f--7ba2a638-7588-4e67-831f-8111eebac7b8.lovable.app-1778951570824.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ea2c77f5-4114-4628-81d3-893f8b6b8c94/id-preview-d9e3954f--7ba2a638-7588-4e67-831f-8111eebac7b8.lovable.app-1778951570824.png" },
     ],
     links: [
       {
